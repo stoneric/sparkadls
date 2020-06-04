@@ -1,23 +1,14 @@
 FROM openjdk:8
 
 ENV SPARK_DIST_FILENAME=spark-2.4.5-bin-without-hadoop
-ENV HADOOP_DIST_FILENAME=hadoop-3.2.1
-ENV SCALA_VERSION=2.12.8
+ENV HADOOP_DIST_FILENAME=hadoop-2.9.2
 ENV SCALA_HOME=/usr/share/scala
 ENV SPARK_HOME=/spark
 ENV HADOOP_HOME=/hadoop
-ENV SPARK_DIST_CLASSPATH=/hadoop/etc/hadoop:/hadoop/share/hadoop/common/lib/*:/hadoop/share/hadoop/common/*:/hadoop/share/hadoop/hdfs:/hadoop/share/hadoop/hdfs/lib/*:/hadoop/share/hadoop/hdfs/*:/hadoop/share/hadoop/mapreduce/lib/*:/hadoop/share/hadoop/mapreduce/*:/hadoop/share/hadoop/yarn:/hadoop/share/hadoop/yarn/lib/*:/hadoop/share/hadoop/yarn/*:/hadoop/share/hadoop/tools/lib/*
+ENV SPARK_DIST_CLASSPATH=/hadoop/etc/hadoop:/hadoop/share/hadoop/common/lib/*:/hadoop/share/hadoop/common/*:/hadoop/share/hadoop/hdfs:/hadoop/share/hadoop/hdfs/lib/*:/hadoop/share/hadoop/hdfs/*:/hadoop/share/hadoop/mapreduce/lib/*:/hadoop/share/hadoop/mapreduce/*:/hadoop/share/hadoop/yarn:/hadoop/share/hadoop/yarn/lib/*:/hadoop/share/hadoop/yarn/*:/hadoop/share/hadoop/tools/lib/*:/hive/lib/*
 
-ENV PATH=$PATH:$SPARK_HOME/bin:$SCALA_HOME/bin:$HADOOP_HOME/bin
+ENV PATH=$PATH:$SPARK_HOME/bin:$SCALA_HOME/bin
 
-
-RUN cd /tmp && \
-    wget --no-verbose --no-check-certificate "https://downloads.typesafe.com/scala/${SCALA_VERSION}/scala-${SCALA_VERSION}.tgz" && \
-    tar xzf "scala-${SCALA_VERSION}.tgz" && \
-    mkdir "${SCALA_HOME}" && \
-    rm "/tmp/scala-${SCALA_VERSION}/bin/"*.bat && \
-    mv "/tmp/scala-${SCALA_VERSION}/bin" "/tmp/scala-${SCALA_VERSION}/lib" "${SCALA_HOME}" && \
-    ln -s "${SCALA_HOME}/bin/"* "/usr/bin/"
     
 RUN cd /tmp && wget --no-verbose http://apache.mirror.iweb.ca/spark/spark-2.4.5/$SPARK_DIST_FILENAME.tgz && \
     tar -xzf $SPARK_DIST_FILENAME.tgz && \
@@ -27,9 +18,41 @@ RUN cd /tmp && wget --no-verbose https://www-eu.apache.org/dist/hadoop/common/$H
     tar -zxf $HADOOP_DIST_FILENAME.tar.gz && \
     mv $HADOOP_DIST_FILENAME /hadoop
     
+RUN cd /tmp && wget --no-verbose  https://repo1.maven.org/maven2/org/apache/spark/spark-hive_2.11/2.4.5/spark-hive_2.11-2.4.5.jar && \
+    mv ./spark-hive_2.11-2.4.5.jar $SPARK_HOME/jars 
+
+RUN cd /tmp && wget --no-verbose  https://repo1.maven.org/maven2/org/apache/spark/spark-hive-thriftserver_2.11/2.4.5/spark-hive-thriftserver_2.11-2.4.5.jar && \
+    mv ./spark-hive-thriftserver_2.11-2.4.5.jar $SPARK_HOME/jars
+
+RUN cd /tmp && wget --no-verbose http://apache.mirror.rafal.ca/hive/hive-1.2.2/apache-hive-1.2.2-bin.tar.gz && \
+    tar -zxf apache-hive-1.2.2-bin.tar.gz && \
+    mv apache-hive-1.2.2-bin /hive
+
+ENV SPARK_DIST_CLASSPATH=$SPARK_DIST_CLASSPATH:/hive/lib/* 
+
 RUN rm -rf /tmp/*
 
 RUN useradd -u 1002 spark
+
+RUN apt-get -y update
+RUN apt-get -y install apt-utils
+RUN apt-get -y install python3 
+RUN apt-get -y install python3-pip 
+RUN pip3 install py4j
+
+ENV PYSPARK_PYTHON python3
+RUN echo "export PYSPARK_PYTHON=$PYSPARK_PYTHON" >> /spark/conf/spark-env.sh
+
+ENV PYTHONPATH=$SPARK_HOME/python:$PYTHONPATH
+ENV PYSPARK_DRIVER_PYTHON=$PYSPARK_PYTHON
+
+RUN ln -sf /usr/bin/python3 /usr/bin/python
+
+RUN chmod go+wr /tmp
+RUN chown spark:spark /opt
+
 USER spark
+
+WORKDIR /opt
 
 CMD [ "bash" ]
