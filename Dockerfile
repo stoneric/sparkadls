@@ -34,6 +34,20 @@ RUN rm -rf /tmp/*
 
 RUN useradd -u 1002 spark
 
+RUN apt-get -y update
+RUN apt-get -y install apt-utils
+RUN apt-get -y install python3 
+RUN apt-get -y install python3-pip 
+RUN pip3 install py4j
+
+ENV PYSPARK_PYTHON python3
+RUN echo "export PYSPARK_PYTHON=$PYSPARK_PYTHON" >> /spark/conf/spark-env.sh
+
+ENV PYTHONPATH=$SPARK_HOME/python:$PYTHONPATH
+ENV PYSPARK_DRIVER_PYTHON=$PYSPARK_PYTHON
+
+RUN ln -sf /usr/bin/python3 /usr/bin/python
+
 RUN chmod go+wr /tmp
 RUN chown spark:spark /opt
 
